@@ -1,0 +1,39 @@
+[
+  {
+    "name": "Skipped tests",
+    "matchedStatuses": ["skipped"]
+  },
+  {
+    "name": "Missing test data fixtures",
+    "matchedStatuses": ["broken", "failed"],
+    "messageRegex": ".*(ENOENT|no such file or directory).*"
+  },
+  {
+    "name": "Infrastructure / network timeouts",
+    "matchedStatuses": ["broken", "failed"],
+    "messageRegex": ".*(page\\.goto: Timeout|page\\.reload: Timeout|apiRequestContext\\.[a-z]+: Timeout|net::ERR_|ECONNREFUSED|ENOTFOUND|EAI_AGAIN).*"
+  },
+  {
+    "name": "Selector / locator issues",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*(toBeVisible|toBeHidden|toBeAttached|toBeEnabled|locator\\.[a-z]+: Timeout|element\\(s\\) not found|strict mode violation).*"
+  },
+  {
+    "name": "Accessibility violations (axe-core)",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*(axe-core|critical accessibility|WCAG).*"
+  },
+  {
+    "name": "Site behavior / product defects",
+    "matchedStatuses": ["failed"],
+    "messageRegex": ".*(toBeGreaterThan|toBeLessThan|toBeCloseTo|toContain|toMatchObject|toEqual|toHaveText|toHaveURL|Order submission triggered a dialog).*"
+  },
+  {
+    "name": "Test errors (uncaught)",
+    "matchedStatuses": ["broken"]
+  },
+  {
+    "name": "Other failures",
+    "matchedStatuses": ["failed"]
+  }
+]

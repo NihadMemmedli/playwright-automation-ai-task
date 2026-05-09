@@ -224,6 +224,9 @@ jobs:
           # no name collisions across browsers.
           merge-multiple: true
 
+      - name: Stage Allure categories
+        run: node scripts/stage-allure-categories.mjs
+
       - name: Generate Allure report
         run: npx allure generate allure-results --clean -o reports/allure
 

@@ -1,0 +1,23 @@
+[
+  {
+    "id": "button-name",
+    "impact": "critical",
+    "description": "Ensure buttons have discernible text",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/button-name?application=playwright",
+    "nodes": 1
+  },
+  {
+    "id": "color-contrast",
+    "impact": "serious",
+    "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=playwright",
+    "nodes": 27
+  },
+  {
+    "id": "html-has-lang",
+    "impact": "serious",
+    "description": "Ensure every HTML document has a lang attribute",
+    "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/html-has-lang?application=playwright",
+    "nodes": 1
+  }
+]

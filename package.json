@@ -1,0 +1,80 @@
+{
+  "name": "playwright-qa-framework",
+  "version": "1.0.0",
+  "description": "Playwright TypeScript E2E framework with self-healing AI for qa-practice.netlify.app",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:chromium": "playwright test --project=chromium",
+    "test:firefox": "playwright test --project=firefox",
+    "test:webkit": "playwright test --project=webkit",
+    "test:debug": "PWDEBUG=1 playwright test",
+    "test:auth": "playwright test auth-ecommerce auth-edge-cases",
+    "test:upload": "playwright test file-upload",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:critical": "playwright test --grep @critical",
+    "test:regression": "playwright test --grep @regression",
+    "test:a11y": "playwright test accessibility",
+    "test:api": "playwright test tests/api --project=chromium",
+    "test:network": "playwright test tests/network --project=chromium",
+    "test:perf": "playwright test --project=performance --workers=1",
+    "test:edge-cases": "playwright test cart-edge-cases checkout-edge-cases session-edge-cases file-upload-edge-cases",
+    "test:security": "playwright test security-smoke",
+    "test:mobile": "playwright test --project='Mobile Chrome' --project='Mobile Safari'",
+    "test:healing": "AI_HEALING_ENABLED=true playwright test",
+    "demo:healing": "HEALING_DEMO=1 AI_HEALING_ENABLED=true playwright test healing-demo --project=chromium --headed",
+    "smoke:healer-factory": "node scripts/smoke-healer-factory.mjs",
+    "test:stability": "playwright test --repeat-each=10 --retries=0 --reporter=list,html,./src/reporters/StabilityReporter.ts --project=chromium",
+    "test:stability:smoke": "playwright test --grep @smoke --repeat-each=20 --retries=0 --reporter=list,./src/reporters/StabilityReporter.ts --project=chromium",
+    "test:stability:report": "cat reports/stability/stability-report.md",
+    "report": "playwright show-report reports/html",
+    "allure:generate": "allure generate allure-results --clean -o reports/allure",
+    "allure:open": "allure open reports/allure",
+    "allure:serve": "allure serve allure-results",
+    "pretest": "node scripts/prepare-test-data.mjs",
+    "lint": "eslint .",
+    "format": "prettier --write \"**/*.{ts,json,md}\"",
+    "docker:build": "docker build -t playwright-qa-framework .",
+    "docker:test": "docker compose run --rm tests",
+    "prepare": "husky || true"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "bash -c 'tsc --noEmit'"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
+    "@eslint/js": "^9.39.4",
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^22.10.0",
+    "allure-commandline": "^2.32.0",
+    "allure-playwright": "^3.0.0",
+    "dotenv": "^16.4.7",
+    "eslint": "^9.17.0",
+    "eslint-plugin-playwright": "^2.10.2",
+    "globals": "^17.6.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.3",
+    "playwright-lighthouse": "^4.0.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.59.2"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.1",
+    "openai": "^4.77.0",
+    "zod": "^3.24.1"
+  }
+}

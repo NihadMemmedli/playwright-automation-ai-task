@@ -1,0 +1,30 @@
+node_modules/
+dist/
+
+# Reports & artifacts (rolling) — keep stability baselines tracked
+reports/*
+!reports/stability/
+reports/stability/*
+!reports/stability/baselines/
+playwright-report/
+allure-results/
+test-results/
+blob-report/
+
+# Self-healing cache (regenerated; can be optionally committed if you want shared heals)
+.healing-cache.json
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.log
+
+# Generated test data
+test-data/large-file.bin

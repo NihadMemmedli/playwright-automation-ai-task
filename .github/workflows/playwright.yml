@@ -1,0 +1,242 @@
+name: Playwright Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+# Required so the publish-allure job can deploy to gh-pages.
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  # Fast gate on PRs: @smoke tests on Chromium + Mobile Chrome only.
+  # Skipped on push to main (the full matrix below covers it).
+  smoke:
+    name: Smoke (PR gate)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run smoke + API + network tests (chromium + Mobile Chrome)
+        env:
+          BASE_URL: https://qa-practice.netlify.app
+          CI: 'true'
+          AI_HEALING_ENABLED: 'false'
+        # Smoke + API + network all gate PRs. They are all fast (<10 min total).
+        # @perf is excluded (Lighthouse runs on push to main only).
+        run: npx playwright test --grep "@smoke|@api|@network" --project=chromium --project="Mobile Chrome"
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-smoke
+          path: reports/html
+          retention-days: 7
+
+  # Full matrix on push to main: chromium + firefox + webkit, all tests.
+  test:
+    name: Tests (${{ matrix.browser }})
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Run tests
+        env:
+          BASE_URL: https://qa-practice.netlify.app
+          CI: 'true'
+          # Healing stays off in CI by default — flip to true and add the secret
+          # if you want AI fallbacks during the run.
+          AI_HEALING_ENABLED: 'false'
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: npx playwright test --project=${{ matrix.browser }}
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: reports/html
+          retention-days: 14
+
+      - name: Upload Allure results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-${{ matrix.browser }}
+          path: allure-results
+          retention-days: 14
+
+      - name: Upload trace + videos on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.browser }}
+          path: test-results
+          retention-days: 14
+
+  # Dedicated accessibility job — runs in parallel with the matrix on push to main.
+  accessibility:
+    name: Accessibility (axe-core)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run a11y scans
+        env:
+          BASE_URL: https://qa-practice.netlify.app
+          CI: 'true'
+          AI_HEALING_ENABLED: 'false'
+        run: npx playwright test accessibility --project=chromium
+
+      - name: Upload a11y report + violation JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a11y-report
+          path: |
+            reports/html
+            test-results
+          retention-days: 14
+
+  # Performance + Lighthouse — runs only on push to main (and manual dispatch),
+  # never on PRs. Lighthouse is slow (~30s/page) and noisy on shared runners,
+  # so it must not block PR merges. Failures here surface as a separate signal.
+  performance:
+    name: Performance (Lighthouse + Web Vitals)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run performance tests
+        env:
+          BASE_URL: https://qa-practice.netlify.app
+          CI: 'true'
+          AI_HEALING_ENABLED: 'false'
+        run: npm run test:perf
+
+      - name: Upload Lighthouse report artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: reports/lighthouse
+          retention-days: 14
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-performance
+          path: reports/html
+          retention-days: 14
+
+  publish-allure:
+    name: Generate combined Allure report
+    needs: test
+    if: always() && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download all allure-results artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+          pattern: allure-results-*
+
+      - name: Merge allure-results
+        run: |
+          mkdir -p allure-results
+          find downloaded-artifacts -mindepth 2 -maxdepth 2 -type d -exec cp -r {}/. allure-results/ \;
+
+      - name: Generate Allure report
+        run: npx allure generate allure-results --clean -o reports/allure
+
+      - name: Upload combined Allure report
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report-combined
+          path: reports/allure
+          retention-days: 14
+
+      # Publishes the dashboard to https://<user>.github.io/<repo>/ on push to main
+      # so reviewers can browse results without cloning. Skipped for PRs.
+      - name: Deploy Allure to GitHub Pages
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: reports/allure
+          publish_branch: gh-pages
+          keep_files: false
+          commit_message: 'chore(report): allure dashboard from ${{ github.sha }}'

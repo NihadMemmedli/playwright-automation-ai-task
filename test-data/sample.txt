@@ -1,0 +1,2 @@
+QA Automation Code Challenge 2026 — sample upload payload.
+Line 2.

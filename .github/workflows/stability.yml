@@ -1,0 +1,85 @@
+name: Stability (nightly)
+
+# Repeats every test N times with retries disabled to detect intermittent failures.
+# Independent of the PR gate in playwright.yml — does not block merges.
+# See STABILITY.md for the triage workflow when a flake is found.
+
+on:
+  schedule:
+    - cron: '0 3 * * *'   # 03:00 UTC nightly
+  workflow_dispatch:
+    inputs:
+      repeats:
+        description: 'Repeat each test N times'
+        required: false
+        default: '10'
+      grep:
+        description: 'Restrict to a tag (e.g. @smoke, @critical) — leave empty for full suite'
+        required: false
+        default: ''
+      threshold:
+        description: 'Max acceptable per-test flake rate (0..1). 0 = any flake fails.'
+        required: false
+        default: '0'
+
+jobs:
+  stability:
+    name: Stability sweep (chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run stability sweep
+        env:
+          BASE_URL: https://qa-practice.netlify.app
+          CI: 'true'
+          AI_HEALING_ENABLED: 'false'
+          STABILITY_THRESHOLD: ${{ inputs.threshold || '0' }}
+        run: |
+          REPEATS="${{ inputs.repeats || '10' }}"
+          GREP="${{ inputs.grep }}"
+          ARGS="--repeat-each=$REPEATS --retries=0 --reporter=list,html,./src/reporters/StabilityReporter.ts --project=chromium"
+          if [ -n "$GREP" ]; then
+            ARGS="$ARGS --grep $GREP"
+          fi
+          npx playwright test $ARGS
+
+      - name: Upload stability report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stability-report
+          path: reports/stability
+          retention-days: 30
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stability-html-report
+          path: reports/html
+          retention-days: 30
+
+      - name: Summarize in job output
+        if: always()
+        run: |
+          if [ -f reports/stability/stability-report.md ]; then
+            {
+              echo "## Stability summary"
+              echo ""
+              head -40 reports/stability/stability-report.md
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
